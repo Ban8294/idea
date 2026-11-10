@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="아이디어">
+<meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#17181b" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<title>아이디어 노트</title>
+<style>
+:root{
+  --bg:#f6f4ef; --card:#ffffff; --text:#1d1d1f; --sub:#6e6e73; --line:#e4e1da;
+  --accent:#e0a21b; --accent-weak:#fbf0d6; --danger:#d93a32; --chip:#ecE9e2;
+  --shadow:0 1px 2px rgba(0,0,0,.06),0 2px 8px rgba(0,0,0,.04);
+  --st-seed:#e0a21b; --st-develop:#3b82f6; --st-making:#8b5cf6; --st-done:#22a35a; --st-hold:#8e8e93;
+}
+@media (prefers-color-scheme: dark){
+  :root{--bg:#17181b; --card:#222327; --text:#f2f2f4; --sub:#9a9aa0; --line:#33343a;
+    --accent:#f0b432; --accent-weak:#3a3020; --chip:#2c2d32; --shadow:none;}
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
+input,select,textarea{font:inherit;font-size:16px;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+.hidden{display:none!important}
+
+/* ---------- 잠금 화면 ---------- */
+#lock{position:fixed;inset:0;z-index:100;background:var(--bg);display:none;align-items:center;justify-content:center;padding:env(safe-area-inset-top) 20px env(safe-area-inset-bottom)}
+body.locked #lock{display:flex}
+body.locked #app{visibility:hidden}
+.lock-inner{width:100%;max-width:320px;text-align:center}
+.lock-icon{font-size:44px;margin-bottom:6px}
+#lockTitle{font-size:20px;font-weight:700}
+.lock-msg{min-height:44px;color:var(--sub);font-size:14px;margin:6px 0 10px;white-space:pre-line}
+.lock-msg.err{color:var(--danger)}
+.dots{display:flex;gap:14px;justify-content:center;height:18px;margin-bottom:28px}
+.dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--sub)}
+.dot.on{background:var(--text);border-color:var(--text)}
+.dots.shake{animation:shake .35s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-10px)}75%{transform:translateX(10px)}}
+.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;justify-items:center}
+.key{width:72px;height:72px;border-radius:50%;background:var(--card);box-shadow:var(--shadow);font-size:26px;font-weight:500;display:flex;align-items:center;justify-content:center;user-select:none}
+.key:active{background:var(--chip)}
+.key.fn{background:none;box-shadow:none;font-size:16px;color:var(--sub)}
+.key.ok{font-size:16px;font-weight:700;color:var(--accent)}
+.lock-links{margin-top:24px;display:flex;flex-direction:column;gap:10px;align-items:center}
+.link{color:var(--sub);font-size:14px;text-decoration:underline}
+
+/* ---------- 공통 레이아웃 ---------- */
+#app{min-height:100%}
+.view{min-height:100vh;padding-bottom:calc(90px + env(safe-area-inset-bottom))}
+.bar{position:sticky;top:0;z-index:10;background:var(--bg);display:flex;align-items:center;justify-content:space-between;gap:8px;padding:calc(env(safe-area-inset-top) + 10px) 16px 10px;border-bottom:1px solid transparent}
+.bar.scrolled{border-bottom-color:var(--line)}
+.bar h1{font-size:22px;margin:0;font-weight:800}
+.bar .btn-text{color:var(--accent);font-weight:600;font-size:16px;padding:6px 2px}
+.icon-btn{font-size:20px;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.icon-btn:active{background:var(--chip)}
+.wrap{padding:0 16px;max-width:760px;margin:0 auto}
+
+/* ---------- 목록 ---------- */
+.chips{display:flex;gap:8px;overflow-x:auto;padding:4px 16px 8px;scrollbar-width:none;max-width:760px;margin:0 auto}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;padding:7px 14px;border-radius:999px;background:var(--chip);font-size:14px;font-weight:600;color:var(--sub);white-space:nowrap}
+.chip.on{background:var(--text);color:var(--bg)}
+.chips.sub .chip{padding:5px 12px;font-size:13px;font-weight:500}
+.chips.sub .chip.on{background:var(--accent);color:#fff}
+.chip .n{opacity:.6;margin-left:4px;font-weight:500}
+.tools{display:flex;gap:8px;padding:4px 16px 8px;max-width:760px;margin:0 auto}
+.tools input{flex:1;min-width:0;padding:9px 12px}
+.tools select{width:auto;flex:0 0 auto;padding:9px 8px;font-size:14px}
+.tagfilter{max-width:760px;margin:0 auto;padding:0 16px 6px}
+.tagfilter button{background:var(--accent-weak);color:var(--accent);border-radius:999px;padding:4px 12px;font-size:14px;font-weight:600}
+.banner{margin:4px 16px 10px;padding:12px 14px;border-radius:12px;background:var(--accent-weak);display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:14px;max-width:728px}
+@media(min-width:792px){.banner{margin:4px auto 10px}}
+.banner button{color:var(--accent);font-weight:700;white-space:nowrap}
+.list{display:flex;flex-direction:column;gap:10px}
+.card{background:var(--card);border-radius:14px;padding:13px 15px;box-shadow:var(--shadow);cursor:pointer;border-left:4px solid var(--st-seed)}
+.card:active{opacity:.75}
+.card-top{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--sub);margin-bottom:3px;flex-wrap:wrap}
+.badge{font-weight:700}
+.card h3{margin:0;font-size:17px;font-weight:700;line-height:1.35;word-break:break-all}
+.card h3.empty{color:var(--sub);font-weight:500}
+.card p{margin:4px 0 0;color:var(--sub);font-size:14px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-all}
+.card-foot{display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap;font-size:12px;color:var(--sub)}
+.tag{color:var(--accent);font-weight:600;font-size:13px}
+.card-foot .spacer{flex:1}
+.empty-state{text-align:center;color:var(--sub);padding:60px 20px;font-size:15px}
+.empty-state .big{font-size:40px;margin-bottom:8px}
+.fab{position:fixed;right:20px;bottom:calc(24px + env(safe-area-inset-bottom));width:60px;height:60px;border-radius:50%;background:var(--accent);color:#fff;font-size:32px;font-weight:300;box-shadow:0 4px 14px rgba(0,0,0,.2);z-index:20;display:flex;align-items:center;justify-content:center}
+.fab:active{transform:scale(.94)}
+
+/* ---------- 편집 ---------- */
+.edit-body{display:flex;flex-direction:column;gap:12px;padding-top:6px}
+#eTitle{font-size:21px;font-weight:700;border:0;background:none;padding:6px 0;border-radius:0;border-bottom:1px solid var(--line)}
+.row{display:flex;gap:8px}
+.row select{flex:1;min-width:0}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{padding:7px 12px;border-radius:999px;background:var(--chip);font-size:14px;font-weight:600;color:var(--sub)}
+.seg button.on{color:#fff}
+#eBody{min-height:240px;resize:none;line-height:1.65;overflow:hidden}
+.label{font-size:13px;color:var(--sub);font-weight:600;margin-bottom:-6px}
+.rec-box{background:var(--card);border-radius:14px;padding:12px 14px;box-shadow:var(--shadow)}
+.rec-head{display:flex;align-items:center;justify-content:space-between}
+.rec-btn{background:var(--danger);color:#fff;border-radius:999px;padding:8px 16px;font-weight:700;font-size:14px}
+.rec-btn.on{animation:pulse 1.2s infinite}
+@keyframes pulse{50%{opacity:.6}}
+.rec-item{border-top:1px solid var(--line);margin-top:10px;padding-top:10px}
+.rec-item .ri-top{display:flex;align-items:center;gap:8px;font-size:14px}
+.rec-item .ri-top b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rec-item .ri-top small{color:var(--sub)}
+.rec-item audio{width:100%;margin-top:6px;height:40px}
+.mini{font-size:13px;color:var(--sub);padding:4px 6px}
+.mini.danger{color:var(--danger)}
+.rec-empty{color:var(--sub);font-size:14px;margin-top:6px}
+.meta{font-size:12px;color:var(--sub);text-align:center;padding:6px 0}
+#saveState{font-size:13px;color:var(--sub)}
+.danger-text{color:var(--danger)!important}
+
+/* ---------- 설정 ---------- */
+.sec{background:var(--card);border-radius:14px;box-shadow:var(--shadow);padding:6px 0;margin-bottom:18px}
+.sec-title{font-size:13px;color:var(--sub);font-weight:700;margin:18px 4px 6px}
+.item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 14px;border-top:1px solid var(--line);min-height:46px}
+.item:first-child{border-top:0}
+.item .t{flex:1;min-width:0}
+.item small{display:block;color:var(--sub);font-size:12px}
+.item select{width:auto;padding:6px 8px;font-size:14px}
+.item.btn{cursor:pointer;color:var(--accent);font-weight:600}
+.item.btn.danger{color:var(--danger)}
+.cat-block{border-top:1px solid var(--line);padding:10px 14px}
+.cat-block:first-child{border-top:0}
+.cat-row,.sub-row{display:flex;align-items:center;gap:4px}
+.cat-row b{flex:1;font-size:16px}
+.sub-row{padding:3px 0 3px 14px;font-size:15px}
+.sub-row span{flex:1;color:var(--text)}
+.sub-row span::before{content:"└ ";color:var(--sub)}
+.add-sub{font-size:13px;color:var(--accent);font-weight:600;padding:6px 0 0 14px}
+.add-cat{display:block;width:100%;text-align:left;padding:12px 14px;border-top:1px solid var(--line);color:var(--accent);font-weight:700}
+
+/* ---------- 모달 ---------- */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:flex-end;justify-content:center}
+.modal{background:var(--bg);width:100%;max-width:480px;border-radius:18px 18px 0 0;padding:20px 18px calc(18px + env(safe-area-inset-bottom))}
+@media(min-width:600px){.modal-bg{align-items:center}.modal{border-radius:18px}}
+.modal h2{margin:0 0 6px;font-size:19px}
+.modal p{margin:0 0 14px;color:var(--sub);font-size:14px;white-space:pre-line}
+.modal .mbtn{display:block;width:100%;padding:14px;border-radius:12px;font-weight:700;margin-top:8px;background:var(--card);box-shadow:var(--shadow)}
+.modal .mbtn.primary{background:var(--accent);color:#fff}
+.modal .mbtn.danger{color:var(--danger)}
+.modal .mbtn.plain{background:none;box-shadow:none;color:var(--sub);font-weight:500}
+.modal a.mbtn{text-align:center;text-decoration:none;color:inherit}
+.toast{position:fixed;left:50%;bottom:calc(100px + env(safe-area-inset-bottom));transform:translateX(-50%);background:rgba(30,30,32,.92);color:#fff;padding:10px 18px;border-radius:999px;font-size:14px;z-index:300;pointer-events:none;opacity:0;transition:opacity .2s}
+.toast.show{opacity:1}
+</style>
+</head>
+<body class="locked">
+
+<!-- 잠금 화면 -->
+<div id="lock">
+  <div class="lock-inner">
+    <div class="lock-icon">💡</div>
+    <div id="lockTitle">PIN 입력</div>
+    <div id="lockMsg" class="lock-msg"></div>
+    <div id="dots" class="dots"></div>
+    <div class="keypad" id="keypad">
+      <button class="key" data-k="1">1</button><button class="key" data-k="2">2</button><button class="key" data-k="3">3</button>
+      <button class="key" data-k="4">4</button><button class="key" data-k="5">5</button><button class="key" data-k="6">6</button>
+      <button class="key" data-k="7">7</button><button class="key" data-k="8">8</button><button class="key" data-k="9">9</button>
+      <button class="key ok" data-k="ok" id="okKey">확인</button><button class="key" data-k="0">0</button><button class="key fn" data-k="del">지움</button>
+    </div>
+    <div class="lock-links">
+      <button class="link" id="forgotBtn">PIN을 잊으셨나요?</button>
+      <button class="link" id="lockCancelBtn">취소</button>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+  <!-- 목록 -->
+  <section id="v-list" class="view">
+    <header class="bar" id="listBar">
+      <h1>아이디어 노트</h1>
+      <div style="display:flex;gap:2px">
+        <button class="icon-btn" id="lockBtn" title="잠그기">🔒</button>
+        <button class="icon-btn" id="setBtn" title="설정">⚙️</button>
+      </div>
+    </header>
+    <div class="chips" id="catChips"></div>
+    <div class="chips sub hidden" id="subChips"></div>
+    <div class="tools">
+      <input id="q" type="search" placeholder="🔍 검색">
+      <select id="fStatus"></select>
+      <select id="fSort">
+        <option value="updated">최근 수정순</option>
+        <option value="created">최근 작성순</option>
+        <option value="title">제목순</option>
+        <option value="status">진행 상태순</option>
+      </select>
+    </div>
+    <div class="tagfilter hidden" id="tagFilter"></div>
+    <div id="backupBanner"></div>
+    <div class="wrap"><div class="list" id="list"></div></div>
+    <button class="fab" id="newBtn" aria-label="새 아이디어">＋</button>
+  </section>
+
+  <!-- 편집 -->
+  <section id="v-edit" class="view hidden">
+    <header class="bar">
+      <button class="btn-text" id="backBtn">‹ 목록</button>
+      <span id="saveState"></span>
+      <button class="btn-text danger-text" id="delNoteBtn">삭제</button>
+    </header>
+    <div class="wrap edit-body">
+      <input id="eTitle" placeholder="제목" autocomplete="off">
+      <div class="row">
+        <select id="eCat"></select>
+        <select id="eSub"></select>
+      </div>
+      <div class="seg" id="eStatus"></div>
+      <input id="eTags" placeholder="태그 (띄어쓰기·쉼표로 구분, 예: 감사 찬양)" autocomplete="off">
+      <textarea id="eBody" placeholder="아이디어를 자유롭게 적어 보세요."></textarea>
+      <div class="rec-box">
+        <div class="rec-head">
+          <b>🎙 녹음</b>
+          <button class="rec-btn" id="recBtn">● 녹음</button>
+        </div>
+        <div id="recList"></div>
+      </div>
+      <div class="meta" id="eMeta"></div>
+    </div>
+  </section>
+
+  <!-- 설정 -->
+  <section id="v-set" class="view hidden">
+    <header class="bar">
+      <button class="btn-text" id="setBackBtn">‹ 목록</button>
+      <b>설정</b>
+      <span style="width:52px"></span>
+    </header>
+    <div class="wrap">
+      <div class="sec-title">분류 관리</div>
+      <div class="sec" id="catManage"></div>
+
+      <div class="sec-title">백업</div>
+      <div class="sec">
+        <div class="item"><div class="t">마지막 백업<small id="lastBackupTxt">-</small></div></div>
+        <div class="item btn" id="exportBtn">백업 파일 만들기</div>
+        <div class="item btn" id="importBtn">백업 파일로 복원하기</div>
+      </div>
+
+      <div class="sec-title">잠금</div>
+      <div class="sec">
+        <div class="item btn" id="changePinBtn">PIN 변경</div>
+        <div class="item"><div class="t">자동 잠금<small>앱을 안 쓰거나 다른 앱으로 나가면 잠깁니다</small></div>
+          <select id="autoLockSel">
+            <option value="0">즉시</option><option value="1">1분</option><option value="3">3분</option>
+            <option value="5">5분</option><option value="10">10분</option><option value="30">30분</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="sec-title">저장 공간</div>
+      <div class="sec">
+        <div class="item"><div class="t">노트 / 녹음<small id="storageTxt">-</small></div></div>
+      </div>
+
+      <div class="sec">
+        <div class="item btn danger" id="resetBtn">모든 데이터 초기화</div>
+      </div>
+      <div class="meta">아이디어 노트 v1.0 · 데이터는 이 기기 안에만 저장됩니다</div>
+    </div>
+  </section>
+</div>
+
+<input type="file" id="importFile" accept=".json,application/json" hidden>
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+/* =========================================================
+   아이디어 노트 v1.0
+   - 데이터: IndexedDB (기기 안에만 저장)
+   - 잠금: PIN(4~6자리) 화면 잠금
+   ========================================================= */
+
+const APP_ID = 'ban-idea-note';
+const DB_NAME = 'ban-idea-note-db';   // 같은 github.io 주소의 다른 앱과 겹치지 않는 이름
+const BACKUP_REMIND_DAYS = 7;
+
+const STATUS = [
+  {id:'seed',    label:'씨앗',   icon:'💡', color:'var(--st-seed)'},
+  {id:'develop', label:'구체화', icon:'✏️', color:'var(--st-develop)'},
+  {id:'making',  label:'제작 중', icon:'🎬', color:'var(--st-making)'},
+  {id:'done',    label:'완료',   icon:'✅', color:'var(--st-done)'},
+  {id:'hold',    label:'보류',   icon:'⏸', color:'var(--st-hold)'},
+];
+const STATUS_MAP = Object.fromEntries(STATUS.map(s=>[s.id,s]));
+const DEFAULT_CATS = ['채널','플레이리스트','Song','기타'];
+
+const $ = id => document.getElementById(id);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ---------------- IndexedDB ---------------- */
+let db;
+function openDB(){
+  return new Promise((res,rej)=>{
+    const r = indexedDB.open(DB_NAME, 1);
+    r.onupgradeneeded = () => {
+      const d = r.result;
+      if(!d.objectStoreNames.contains('notes')) d.createObjectStore('notes',{keyPath:'id'});
+      if(!d.objectStoreNames.contains('audio')){
+        const s = d.createObjectStore('audio',{keyPath:'id'});
+        s.createIndex('noteId','noteId');
+      }
+      if(!d.objectStoreNames.contains('meta')) d.createObjectStore('meta',{keyPath:'key'});
+    };
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+const wrapReq = r => new Promise((res,rej)=>{ r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); });
+const store = (name, mode='readonly') => db.transaction(name, mode).objectStore(name);
+const DB = {
+  all: s => wrapReq(store(s).getAll()),
+  get: (s,k) => wrapReq(store(s).get(k)),
+  put: (s,v) => wrapReq(store(s,'readwrite').put(v)),
+  del: (s,k) => wrapReq(store(s,'readwrite').delete(k)),
+  clear: s => wrapReq(store(s,'readwrite').clear()),
+  byNote: noteId => wrapReq(store('audio').index('noteId').getAll(noteId)),
+  putMany(s, items){
+    return new Promise((res,rej)=>{
+      const t = db.transaction(s,'readwrite'); const os = t.objectStore(s);
+      items.forEach(i=>os.put(i));
+      t.oncomplete = ()=>res(); t.onerror = ()=>rej(t.error);
+    });
+  }
+};
+const getMeta = async (k, def) => { const r = await DB.get('meta', k); return r ? r.value : def; };
+const setMeta = (k, v) => DB.put('meta', {key:k, value:v});
+const delMeta = k => DB.del('meta', k);
+
+/* ---------------- 상태 ---------------- */
+let settings = {pinHash:null, salt:null, pinLen:4, autoLockMin:3, lastBackup:0};
+let cats = [];
+let notes = [];
+let filter = {cat:'all', sub:'all', status:'all', q:'', tag:null, sort:'updated'};
+let view = 'list';
+
+/* ---------------- 유틸 ---------------- */
+function fmtDate(t){
+  const d = new Date(t), n = new Date();
+  const p = x => String(x).padStart(2,'0');
+  if(d.toDateString() === n.toDateString()) return `오늘 ${p(d.getHours())}:${p(d.getMinutes())}`;
+  if(d.getFullYear() === n.getFullYear()) return `${d.getMonth()+1}월 ${d.getDate()}일`;
+  return `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`;
+}
+function fmtFull(t){
+  const d = new Date(t), p = x => String(x).padStart(2,'0');
+  return `${d.getFullYear()}.${p(d.getMonth()+1)}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+const fmtDur = s => `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
+const fmtSize = b => b > 1048576 ? (b/1048576).toFixed(1)+'MB' : Math.max(1,Math.round(b/1024))+'KB';
+function toast(msg){
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(()=>t.classList.remove('show'), 1800);
+}
+function catName(id){ return cats.find(c=>c.id===id)?.name; }
+function subName(cid, sid){ return cats.find(c=>c.id===cid)?.subs.find(s=>s.id===sid)?.name; }
+function parseTags(str){
+  const seen = new Set();
+  return String(str||'').split(/[,\s#]+/).map(t=>t.trim()).filter(t=>t && !seen.has(t) && seen.add(t));
+}
+
+/* ---------------- PIN 해시 ---------------- */
+async function hashPin(pin, salt){
+  const text = salt + ':' + pin;
+  if(window.crypto && crypto.subtle){
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+  // 보안 연결이 아닌 경우(파일로 직접 연 경우 등) 대체 해시
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for(let i=0;i<text.length;i++){ const c=text.charCodeAt(i); h1=Math.imul(h1^c,2654435761); h2=Math.imul(h2^c,1597334677); }
+  h1 = Math.imul(h1^(h1>>>16),2246822507) ^ Math.imul(h2^(h2>>>13),3266489909);
+  h2 = Math.imul(h2^(h2>>>16),2246822507) ^ Math.imul(h1^(h1>>>13),3266489909);
+  return 'f' + (h2>>>0).toString(16) + (h1>>>0).toString(16);
+}
+function randomSalt(){
+  const a = new Uint8Array(16); crypto.getRandomValues(a);
+  return [...a].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+/* =========================================================
+   잠금 화면
+   mode: unlock | setup1 | setup2 | verify(변경 전 확인)
+   ========================================================= */
+let lockMode = 'unlock', pinBuf = '', firstPin = '', fails = 0, waitUntil = 0, changing = false, lockMsgOverride = '';
+const isLocked = () => document.body.classList.contains('locked');
+
+function showLock(mode, msg=''){
+  lockMode = mode; pinBuf = ''; lockMsgOverride = msg;
+  document.body.classList.add('locked');
+  renderLock();
+}
+function renderLock(err=false){
+  const titles = {unlock:'PIN 입력', setup1: changing ? '새 PIN 입력' : 'PIN 설정', setup2:'PIN 다시 입력', verify:'현재 PIN 입력'};
+  const msgs = {
+    unlock:'',
+    setup1: changing ? '새로 사용할 4~6자리 숫자를 입력하고 [확인]을 누르세요.' : '앱을 잠글 4~6자리 숫자를 입력하고\n[확인]을 누르세요.',
+    setup2:'확인을 위해 한 번 더 입력하세요.',
+    verify:'PIN을 바꾸려면 현재 PIN을 입력하세요.'
+  };
+  $('lockTitle').textContent = titles[lockMode];
+  const m = $('lockMsg');
+  m.textContent = lockMsgOverride || msgs[lockMode];
+  m.classList.toggle('err', err);
+  const total = (lockMode==='unlock' || lockMode==='verify') ? settings.pinLen : Math.max(4, pinBuf.length);
+  $('dots').innerHTML = Array.from({length: Math.min(6,total)}, (_,i)=>`<span class="dot ${i<pinBuf.length?'on':''}"></span>`).join('');
+  const isSetup = lockMode==='setup1' || lockMode==='setup2';
+  $('okKey').style.visibility = isSetup ? 'visible' : 'hidden';
+  const fb = $('forgotBtn');
+  fb.classList.toggle('hidden', changing);
+  fb.textContent = lockMode==='unlock' ? 'PIN을 잊으셨나요?' : '백업 파일로 시작하기';
+  if(lockMode !== 'unlock' && lockMode !== 'setup1') fb.classList.add('hidden');
+  $('lockCancelBtn').classList.toggle('hidden', !changing);
+}
+function shakeDots(){ const d=$('dots'); d.classList.remove('shake'); void d.offsetWidth; d.classList.add('shake'); }
+
+function pressKey(k){
+  if(Date.now() < waitUntil) return;
+  if(k === 'del'){ pinBuf = pinBuf.slice(0,-1); }
+  else if(k === 'ok'){ submitPin(); return; }
+  else if(/^\d$/.test(k) && pinBuf.length < 6){ pinBuf += k; }
+  lockMsgOverride = '';
+  renderLock();
+  if((lockMode==='unlock' || lockMode==='verify') && pinBuf.length === settings.pinLen) setTimeout(submitPin, 80);
+}
+
+async function submitPin(){
+  if(lockMode==='unlock' || lockMode==='verify'){
+    const h = await hashPin(pinBuf, settings.salt);
+    if(h === settings.pinHash){
+      fails = 0;
+      if(lockMode==='verify'){ showLock('setup1'); return; }
+      unlock(); return;
+    }
+    fails++; pinBuf = ''; shakeDots();
+    if(fails >= 5){
+      fails = 0; waitUntil = Date.now() + 30000;
+      const tick = () => {
+        const left = Math.ceil((waitUntil - Date.now())/1000);
+        if(left <= 0){ lockMsgOverride=''; renderLock(); return; }
+        lockMsgOverride = `5번 틀려서 ${left}초 후에 다시 시도할 수 있습니다.`; renderLock(true);
+        setTimeout(tick, 1000);
+      };
+      tick();
+    } else { lockMsgOverride = `PIN이 맞지 않습니다. (${fails}/5)`; renderLock(true); }
+    return;
+  }
+  if(lockMode==='setup1'){
+    if(pinBuf.length < 4){ lockMsgOverride='4자리 이상 입력하세요.'; renderLock(true); shakeDots(); return; }
+    firstPin = pinBuf; showLock('setup2'); return;
+  }
+  if(lockMode==='setup2'){
+    if(pinBuf !== firstPin){ firstPin=''; showLock('setup1','두 번 입력한 PIN이 다릅니다. 처음부터 다시 입력하세요.'); renderLock(true); shakeDots(); return; }
+    const salt = randomSalt();
+    settings.salt = salt; settings.pinLen = pinBuf.length; settings.pinHash = await hashPin(pinBuf, salt);
+    await setMeta('salt', salt); await setMeta('pinLen', settings.pinLen); await setMeta('pinHash', settings.pinHash);
+    firstPin = '';
+    const wasChanging = changing; changing = false;
+    unlock();
+    toast(wasChanging ? 'PIN을 변경했습니다' : 'PIN이 설정되었습니다');
+  }
+}
+function unlock(){
+  document.body.classList.remove('locked');
+  pinBuf = ''; lastActive = Date.now();
+  render();
+}
+function lockNow(){
+  if(!settings.pinHash || isLocked()) return;
+  if(recorder) stopRec();
+  flushSave();
+  changing = false;
+  showLock('unlock');
+}
+
+$('keypad').addEventListener('click', e=>{ const b=e.target.closest('[data-k]'); if(b) pressKey(b.dataset.k); });
+document.addEventListener('keydown', e=>{
+  if(!isLocked()) return;
+  if(/^\d$/.test(e.key)) pressKey(e.key);
+  else if(e.key==='Backspace') pressKey('del');
+  else if(e.key==='Enter') pressKey('ok');
+});
+$('lockCancelBtn').onclick = ()=>{ changing=false; unlock(); };
+$('forgotBtn').onclick = ()=>{
+  if(lockMode==='setup1'){ importCtx='lock'; $('importFile').click(); return; }
+  modal({
+    title:'PIN을 잊으셨나요?',
+    text:'PIN은 이 기기 안에만 저장되어 있어 찾을 수 없습니다.\n아래 방법 중 하나로 새 PIN을 설정하세요.\n\n※ 두 방법 모두 지금 기기에 있는 노트와 녹음은 지워집니다.',
+    buttons:[
+      {label:'백업 파일로 복원하고 새 PIN 설정', cls:'primary', fn:()=>{ importCtx='lock'; $('importFile').click(); }},
+      {label:'모두 지우고 새로 시작', cls:'danger', fn:resetAll},
+      {label:'닫기', cls:'plain'}
+    ]
+  });
+};
+
+/* ---------------- 자동 잠금 ---------------- */
+let lastActive = Date.now(), hiddenAt = 0;
+['pointerdown','keydown','input','touchstart','scroll'].forEach(ev=>
+  document.addEventListener(ev, ()=>{ lastActive = Date.now(); }, {passive:true, capture:true}));
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden){
+    hiddenAt = Date.now(); flushSave();
+    if(settings.autoLockMin === 0) lockNow();
+  } else if(hiddenAt && Date.now() - hiddenAt >= settings.autoLockMin*60000){
+    lockNow();
+  }
+});
+window.addEventListener('pagehide', flushSave);
+setInterval(()=>{
+  if(!isLocked() && !recorder && settings.autoLockMin > 0 && Date.now() - lastActive >= settings.autoLockMin*60000) lockNow();
+}, 10000);
+
+/* =========================================================
+   화면 전환
+   ========================================================= */
+function show(v){
+  view = v;
+  ['list','edit','set'].forEach(x=>$('v-'+x).classList.toggle('hidden', x!==v));
+  window.scrollTo(0,0);
+}
+function render(){
+  if(view==='list') renderList();
+  else if(view==='set') renderSettings();
+}
+window.addEventListener('scroll', ()=>{ document.querySelectorAll('.bar').forEach(b=>b.classList.toggle('scrolled', scrollY>4)); }, {passive:true});
+window.addEventListener('popstate', ()=>{
+  if(isLocked()) return;
+  if(view==='edit') closeEditor(true);
+  else if(view==='set'){ show('list'); renderList(); }
+});
+
+/* =========================================================
+   목록
+   ========================================================= */
+function countBy(pred){ return notes.filter(pred).length; }
+function renderChips(){
+  const all = notes.length;
+  let h = `<button class="chip ${filter.cat==='all'?'on':''}" data-cat="all">전체<span class="n">${all}</span></button>`;
+  cats.forEach(c=>{
+    h += `<button class="chip ${filter.cat===c.id?'on':''}" data-cat="${c.id}">${esc(c.name)}<span class="n">${countBy(n=>n.catId===c.id)}</span></button>`;
+  });
+  const none = countBy(n=>!n.catId || !catName(n.catId));
+  if(none) h += `<button class="chip ${filter.cat==='none'?'on':''}" data-cat="none">미분류<span class="n">${none}</span></button>`;
+  $('catChips').innerHTML = h;
+
+  const cat = cats.find(c=>c.id===filter.cat);
+  const sc = $('subChips');
+  if(cat && cat.subs.length){
+    let s = `<button class="chip ${filter.sub==='all'?'on':''}" data-sub="all">전체</button>`;
+    cat.subs.forEach(x=>{ s += `<button class="chip ${filter.sub===x.id?'on':''}" data-sub="${x.id}">${esc(x.name)}<span class="n">${countBy(n=>n.catId===cat.id && n.subId===x.id)}</span></button>`; });
+    sc.innerHTML = s; sc.classList.remove('hidden');
+  } else { sc.classList.add('hidden'); sc.innerHTML=''; }
+}
+function filtered(){
+  const q = filter.q.trim().toLowerCase();
+  let arr = notes.filter(n=>{
+    if(filter.cat==='none'){ if(n.catId && catName(n.catId)) return false; }
+    else if(filter.cat!=='all'){
+      if(n.catId!==filter.cat) return false;
+      if(filter.sub!=='all' && n.subId!==filter.sub) return false;
+    }
+    if(filter.status!=='all' && n.status!==filter.status) return false;
+    if(filter.tag && !(n.tags||[]).includes(filter.tag)) return false;
+    if(q){
+      const hay = (n.title+' '+n.body+' '+(n.tags||[]).join(' ')).toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  const order = Object.fromEntries(STATUS.map((s,i)=>[s.id,i]));
+  const sorters = {
+    updated:(a,b)=>b.updatedAt-a.updatedAt,
+    created:(a,b)=>b.createdAt-a.createdAt,
+    title:(a,b)=>(a.title||'힣').localeCompare(b.title||'힣','ko'),
+    status:(a,b)=>(order[a.status]-order[b.status]) || (b.updatedAt-a.updatedAt)
+  };
+  return arr.sort(sorters[filter.sort]);
+}
+function renderList(){
+  renderChips();
+  const tf = $('tagFilter');
+  if(filter.tag){ tf.innerHTML = `<button id="clearTag">#${esc(filter.tag)} ✕</button>`; tf.classList.remove('hidden'); $('clearTag').onclick=()=>{filter.tag=null;renderList();}; }
+  else tf.classList.add('hidden');
+
+  // 백업 알림
+  const bb = $('backupBanner');
+  const days = settings.lastBackup ? Math.floor((Date.now()-settings.lastBackup)/86400000) : null;
+  if(notes.length && (days===null || days >= BACKUP_REMIND_DAYS)){
+    bb.innerHTML = `<div class="banner"><span>${days===null ? '아직 백업한 적이 없어요.' : `마지막 백업 후 ${days}일이 지났어요.`}<br><small style="color:var(--sub)">핸드폰을 잃어버리면 아이디어도 사라집니다.</small></span><button id="bannerBackup">지금 백업</button></div>`;
+    $('bannerBackup').onclick = exportBackup;
+  } else bb.innerHTML = '';
+
+  const arr = filtered();
+  const L = $('list');
+  if(!arr.length){
+    L.innerHTML = notes.length
+      ? `<div class="empty-state"><div class="big">🔍</div>조건에 맞는 아이디어가 없습니다.</div>`
+      : `<div class="empty-state"><div class="big">💡</div>첫 번째 아이디어를 적어 보세요.<br>오른쪽 아래 <b>＋</b> 버튼을 누르면 됩니다.</div>`;
+    return;
+  }
+  L.innerHTML = arr.map(n=>{
+    const st = STATUS_MAP[n.status] || STATUS[0];
+    const cn = catName(n.catId), sn = subName(n.catId, n.subId);
+    const where = cn ? esc(cn) + (sn ? ' › '+esc(sn) : '') : '미분류';
+    const snippet = (n.body||'').replace(/\s+/g,' ').slice(0,120);
+    const tags = (n.tags||[]).map(t=>`<button class="tag" data-tag="${esc(t)}">#${esc(t)}</button>`).join(' ');
+    return `<div class="card" data-id="${n.id}" style="border-left-color:${st.color}">
+      <div class="card-top"><span class="badge" style="color:${st.color}">${st.icon} ${st.label}</span><span>·</span><span>${where}</span></div>
+      <h3 class="${n.title?'':'empty'}">${n.title ? esc(n.title) : '제목 없음'}</h3>
+      ${snippet ? `<p>${esc(snippet)}</p>` : ''}
+      <div class="card-foot">${tags}<span class="spacer"></span>${n.audioCount ? `🎙 ${n.audioCount} · ` : ''}${fmtDate(n.updatedAt)}</div>
+    </div>`;
+  }).join('');
+}
+$('catChips').addEventListener('click', e=>{ const b=e.target.closest('[data-cat]'); if(!b) return; filter.cat=b.dataset.cat; filter.sub='all'; renderList(); });
+$('subChips').addEventListener('click', e=>{ const b=e.target.closest('[data-sub]'); if(!b) return; filter.sub=b.dataset.sub; renderList(); });
+$('list').addEventListener('click', e=>{
+  const t = e.target.closest('[data-tag]');
+  if(t){ e.stopPropagation(); filter.tag=t.dataset.tag; renderList(); window.scrollTo(0,0); return; }
+  const c = e.target.closest('.card'); if(c) openEditor(c.dataset.id);
+});
+$('q').addEventListener('input', e=>{ filter.q=e.target.value; renderList(); });
+$('fStatus').innerHTML = `<option value="all">모든 상태</option>` + STATUS.map(s=>`<option value="${s.id}">${s.icon} ${s.label}</option>`).join('');
+$('fStatus').onchange = e=>{ filter.status=e.target.value; renderList(); };
+$('fSort').onchange = e=>{ filter.sort=e.target.value; setMeta('sort', filter.sort); renderList(); };
+$('newBtn').onclick = ()=>openEditor(null);
+$('lockBtn').onclick = lockNow;
+$('setBtn').onclick = ()=>{ show('set'); history.pushState({v:'set'},''); renderSettings(); };
+
+/* =========================================================
+   편집
+   ========================================================= */
+let cur = null, isNew = false, saveTimer = null, dirty = false;
+
+function openEditor(id){
+  if(id){ cur = {...notes.find(n=>n.id===id)}; isNew = false; }
+  else {
+    const now = Date.now();
+    const catId = cats.find(c=>c.id===filter.cat) ? filter.cat : (cats[0]?.id || null);
+    const subId = (catId===filter.cat && filter.sub!=='all') ? filter.sub : null;
+    cur = {id:uid(), title:'', body:'', catId, subId, status:'seed', tags:[], createdAt:now, updatedAt:now, audioCount:0};
+    isNew = true;
+  }
+  dirty = false;
+  $('eTitle').value = cur.title;
+  $('eBody').value = cur.body;
+  $('eTags').value = (cur.tags||[]).join(' ');
+  fillCatSelect(); renderStatusSeg(); renderMeta();
+  $('saveState').textContent = '';
+  show('edit');
+  history.pushState({v:'edit'},'');
+  autoGrow();
+  renderRecList();
+  if(isNew) setTimeout(()=>$('eTitle').focus(), 50);
+}
+function fillCatSelect(){
+  $('eCat').innerHTML = `<option value="">미분류</option>` + cats.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  $('eCat').value = cats.find(c=>c.id===cur.catId) ? cur.catId : '';
+  fillSubSelect();
+}
+function fillSubSelect(){
+  const cat = cats.find(c=>c.id===cur.catId);
+  const s = $('eSub');
+  if(!cat || !cat.subs.length){ s.classList.add('hidden'); s.innerHTML=''; cur.subId=null; return; }
+  s.classList.remove('hidden');
+  s.innerHTML = `<option value="">하위 분류 없음</option>` + cat.subs.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');
+  s.value = cat.subs.find(x=>x.id===cur.subId) ? cur.subId : '';
+}
+function renderStatusSeg(){
+  $('eStatus').innerHTML = STATUS.map(s=>`<button data-st="${s.id}" class="${cur.status===s.id?'on':''}" style="${cur.status===s.id?`background:${s.color}`:''}">${s.icon} ${s.label}</button>`).join('');
+}
+function renderMeta(){
+  $('eMeta').textContent = isNew && !dirty ? '' : `처음 작성 ${fmtFull(cur.createdAt)} · 마지막 수정 ${fmtFull(cur.updatedAt)}`;
+}
+function autoGrow(){ const t=$('eBody'); t.style.height='auto'; t.style.height = Math.max(240, t.scrollHeight+4)+'px'; }
+
+function markDirty(){
+  dirty = true; $('saveState').textContent = '입력 중…';
+  clearTimeout(saveTimer); saveTimer = setTimeout(saveNote, 600);
+}
+async function saveNote(){
+  clearTimeout(saveTimer); saveTimer = null;
+  if(!cur || !dirty) return;
+  cur.title = $('eTitle').value.trim();
+  cur.body = $('eBody').value;
+  cur.tags = parseTags($('eTags').value);
+  cur.updatedAt = Date.now();
+  dirty = false;
+  await DB.put('notes', cur);
+  const i = notes.findIndex(n=>n.id===cur.id);
+  if(i>=0) notes[i] = {...cur}; else notes.push({...cur});
+  isNew = false;
+  $('saveState').textContent = '저장됨 ✓';
+  renderMeta();
+}
+function flushSave(){ if(dirty) saveNote(); }
+const isEmptyNote = n => !n.title && !n.body.trim() && !(n.tags||[]).length && !n.audioCount;
+
+async function closeEditor(fromPop=false){
+  if(recorder) stopRec();
+  await saveNote();
+  if(cur && !isNew && isEmptyNote(cur)){        // 아무것도 안 쓴 노트는 지움
+    await DB.del('notes', cur.id);
+    notes = notes.filter(n=>n.id!==cur.id);
+  }
+  revokeUrls();
+  cur = null;
+  show('list'); renderList();
+  if(!fromPop) history.back();
+}
+['eTitle','eBody','eTags'].forEach(id=>$(id).addEventListener('input', ()=>{ if(id==='eBody') autoGrow(); markDirty(); }));
+$('eCat').onchange = e=>{ cur.catId = e.target.value || null; cur.subId = null; fillSubSelect(); markDirty(); };
+$('eSub').onchange = e=>{ cur.subId = e.target.value || null; markDirty(); };
+$('eStatus').addEventListener('click', e=>{ const b=e.target.closest('[data-st]'); if(!b) return; cur.status=b.dataset.st; renderStatusSeg(); markDirty(); });
+$('backBtn').onclick = ()=>closeEditor(false);
+$('delNoteBtn').onclick = async ()=>{
+  if(!confirm('이 아이디어를 삭제할까요?\n녹음도 함께 삭제되며 되돌릴 수 없습니다.')) return;
+  if(recorder) stopRec();
+  clearTimeout(saveTimer); dirty = false;
+  const audios = await DB.byNote(cur.id);
+  for(const a of audios) await DB.del('audio', a.id);
+  await DB.del('notes', cur.id);
+  notes = notes.filter(n=>n.id!==cur.id);
+  isNew = true;              // closeEditor에서 다시 처리하지 않도록
+  toast('삭제했습니다');
+  closeEditor(false);
+};
+
+/* =========================================================
+   녹음
+   ========================================================= */
+let recorder = null, recChunks = [], recStart = 0, recTimer = null, recStream = null, recNoteId = null, objUrls = [];
+
+function pickMime(){
+  if(!window.MediaRecorder || !MediaRecorder.isTypeSupported) return '';
+  return ['audio/mp4','audio/webm;codecs=opus','audio/webm','audio/ogg'].find(m=>MediaRecorder.isTypeSupported(m)) || '';
+}
+async function startRec(){
+  if(!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder){
+    alert('이 브라우저에서는 녹음을 지원하지 않습니다.\n(아이폰은 iOS 14.3 이상, https 주소에서 사용할 수 있습니다)'); return;
+  }
+  try{ recStream = await navigator.mediaDevices.getUserMedia({audio:true}); }
+  catch(e){ alert('마이크를 사용할 수 없습니다.\n마이크 접근을 허용했는지 확인해 주세요.\n(설정 › Safari › 마이크)'); return; }
+  // 녹음을 붙이려면 노트가 먼저 저장되어 있어야 함
+  dirty = true; await saveNote();
+  recNoteId = cur.id;
+  const mime = pickMime();
+  try{ recorder = new MediaRecorder(recStream, mime ? {mimeType:mime} : undefined); }
+  catch(e){ recorder = new MediaRecorder(recStream); }
+  recChunks = [];
+  recorder.ondataavailable = e=>{ if(e.data && e.data.size) recChunks.push(e.data); };
+  recorder.onstop = finishRec;
+  recorder.start(1000);
+  recStart = Date.now();
+  const b = $('recBtn'); b.classList.add('on');
+  const tick = ()=>{ b.textContent = `■ 정지 ${fmtDur((Date.now()-recStart)/1000)}`; };
+  tick(); recTimer = setInterval(tick, 500);
+}
+function stopRec(){
+  if(recorder && recorder.state !== 'inactive') recorder.stop();
+}
+async function finishRec(){
+  clearInterval(recTimer);
+  const b = $('recBtn'); b.classList.remove('on'); b.textContent = '● 녹음';
+  const dur = (Date.now()-recStart)/1000;
+  const type = (recorder && recorder.mimeType) || recChunks[0]?.type || 'audio/mp4';
+  recStream?.getTracks().forEach(t=>t.stop());
+  recorder = null; recStream = null;
+  if(!recChunks.length || dur < 0.5){ toast('녹음이 너무 짧습니다'); return; }
+  const buf = await new Blob(recChunks, {type}).arrayBuffer();
+  recChunks = [];
+  const existing = await DB.byNote(recNoteId);
+  const num = existing.length + 1;
+  await DB.put('audio', {id:uid(), noteId:recNoteId, name:`녹음 ${num}`, mime:type, duration:dur, size:buf.byteLength, createdAt:Date.now(), data:buf});
+  await bumpAudioCount(recNoteId, +1);
+  toast('녹음을 저장했습니다');
+  if(cur && cur.id === recNoteId) renderRecList();
+}
+async function bumpAudioCount(noteId, d){
+  const n = notes.find(x=>x.id===noteId); if(!n) return;
+  n.audioCount = Math.max(0,(n.audioCount||0)+d); n.updatedAt = Date.now();
+  await DB.put('notes', n);
+  if(cur && cur.id===noteId){ cur.audioCount = n.audioCount; cur.updatedAt = n.updatedAt; renderMeta(); }
+}
+function revokeUrls(){ objUrls.forEach(u=>URL.revokeObjectURL(u)); objUrls=[]; }
+async function renderRecList(){
+  revokeUrls();
+  const box = $('recList');
+  if(!cur || isNew){ box.innerHTML = `<div class="rec-empty">허밍이나 멜로디, 떠오른 말을 바로 녹음해 두세요.</div>`; return; }
+  const items = (await DB.byNote(cur.id)).sort((a,b)=>a.createdAt-b.createdAt);
+  if(!items.length){ box.innerHTML = `<div class="rec-empty">허밍이나 멜로디, 떠오른 말을 바로 녹음해 두세요.</div>`; return; }
+  box.innerHTML = items.map(a=>{
+    const url = URL.createObjectURL(new Blob([a.data], {type:a.mime})); objUrls.push(url);
+    return `<div class="rec-item" data-aid="${a.id}">
+      <div class="ri-top"><b>${esc(a.name)}</b><small>${fmtDur(a.duration)} · ${fmtDate(a.createdAt)}</small>
+        <button class="mini" data-act="rename">이름</button><button class="mini danger" data-act="del">삭제</button></div>
+      <audio controls preload="metadata" src="${url}"></audio>
+    </div>`;
+  }).join('');
+}
+$('recBtn').onclick = ()=>{ recorder ? stopRec() : startRec(); };
+$('recList').addEventListener('click', async e=>{
+  const b = e.target.closest('[data-act]'); if(!b) return;
+  const id = b.closest('[data-aid]').dataset.aid;
+  const a = await DB.get('audio', id); if(!a) return;
+  if(b.dataset.act==='rename'){
+    const nm = prompt('녹음 이름', a.name); if(nm===null || !nm.trim()) return;
+    a.name = nm.trim(); await DB.put('audio', a); renderRecList();
+  } else if(b.dataset.act==='del'){
+    if(!confirm(`'${a.name}'을(를) 삭제할까요?`)) return;
+    await DB.del('audio', id); await bumpAudioCount(a.noteId, -1); renderRecList();
+  }
+});
+
+/* =========================================================
+   설정
+   ========================================================= */
+async function renderSettings(){
+  // 분류
+  let h = '';
+  cats.forEach((c,i)=>{
+    h += `<div class="cat-block" data-cid="${c.id}">
+      <div class="cat-row"><b>${esc(c.name)}</b>
+        <button class="mini" data-act="up" ${i===0?'disabled style="opacity:.3"':''}>▲</button>
+        <button class="mini" data-act="down" ${i===cats.length-1?'disabled style="opacity:.3"':''}>▼</button>
+        <button class="mini" data-act="renameCat">이름</button>
+        <button class="mini danger" data-act="delCat">삭제</button></div>
+      ${c.subs.map(s=>`<div class="sub-row" data-sid="${s.id}"><span>${esc(s.name)}</span>
+        <button class="mini" data-act="renameSub">이름</button><button class="mini danger" data-act="delSub">삭제</button></div>`).join('')}
+      <button class="add-sub" data-act="addSub">＋ 하위 분류 추가</button>
+    </div>`;
+  });
+  h += `<button class="add-cat" data-act="addCat">＋ 상위 분류 추가</button>`;
+  $('catManage').innerHTML = h;
+
+  $('lastBackupTxt').textContent = settings.lastBackup ? fmtFull(settings.lastBackup) : '아직 없음';
+  $('autoLockSel').value = String(settings.autoLockMin);
+
+  const audios = await DB.all('audio');
+  const aSize = audios.reduce((s,a)=>s+(a.size||0),0);
+  let txt = `노트 ${notes.length}개 · 녹음 ${audios.length}개 (${fmtSize(aSize)})`;
+  try{ if(navigator.storage?.estimate){ const e = await navigator.storage.estimate(); if(e.usage) txt += ` · 사용 중 ${fmtSize(e.usage)}`; } }catch(_){}
+  $('storageTxt').textContent = txt;
+}
+const saveCats = () => setMeta('categories', cats);
+$('catManage').addEventListener('click', async e=>{
+  const b = e.target.closest('[data-act]'); if(!b || b.disabled) return;
+  const act = b.dataset.act;
+  const cid = b.closest('[data-cid]')?.dataset.cid;
+  const sid = b.closest('[data-sid]')?.dataset.sid;
+  const ci = cats.findIndex(c=>c.id===cid), c = cats[ci];
+  if(act==='addCat'){
+    const nm = prompt('새 상위 분류 이름'); if(!nm?.trim()) return;
+    cats.push({id:uid(), name:nm.trim(), subs:[]});
+  } else if(act==='addSub'){
+    const nm = prompt(`'${c.name}'에 추가할 하위 분류 이름`); if(!nm?.trim()) return;
+    c.subs.push({id:uid(), name:nm.trim()});
+  } else if(act==='renameCat'){
+    const nm = prompt('분류 이름 바꾸기', c.name); if(!nm?.trim()) return; c.name = nm.trim();
+  } else if(act==='renameSub'){
+    const s = c.subs.find(x=>x.id===sid); const nm = prompt('하위 분류 이름 바꾸기', s.name); if(!nm?.trim()) return; s.name = nm.trim();
+  } else if(act==='up' || act==='down'){
+    const j = act==='up' ? ci-1 : ci+1; [cats[ci], cats[j]] = [cats[j], cats[ci]];
+  } else if(act==='delCat'){
+    const n = countBy(x=>x.catId===cid);
+    if(!confirm(`'${c.name}' 분류를 삭제할까요?` + (n ? `\n이 분류의 노트 ${n}개는 지워지지 않고 '미분류'로 옮겨집니다.` : ''))) return;
+    for(const x of notes.filter(x=>x.catId===cid)){ x.catId=null; x.subId=null; await DB.put('notes', x); }
+    cats.splice(ci,1);
+    if(filter.cat===cid){ filter.cat='all'; filter.sub='all'; }
+  } else if(act==='delSub'){
+    const s = c.subs.find(x=>x.id===sid);
+    const n = countBy(x=>x.subId===sid);
+    if(!confirm(`'${s.name}' 하위 분류를 삭제할까요?` + (n ? `\n노트 ${n}개는 '${c.name}' 분류에 그대로 남습니다.` : ''))) return;
+    for(const x of notes.filter(x=>x.subId===sid)){ x.subId=null; await DB.put('notes', x); }
+    c.subs = c.subs.filter(x=>x.id!==sid);
+    if(filter.sub===sid) filter.sub='all';
+  }
+  await saveCats(); renderSettings();
+});
+$('setBackBtn').onclick = ()=>{ history.back(); };
+$('autoLockSel').onchange = e=>{ settings.autoLockMin = Number(e.target.value); setMeta('autoLockMin', settings.autoLockMin); toast('자동 잠금 시간을 바꿨습니다'); };
+$('changePinBtn').onclick = ()=>{ changing = true; showLock('verify'); };
+$('exportBtn').onclick = exportBackup;
+$('importBtn').onclick = ()=>{ importCtx='settings'; $('importFile').click(); };
+$('resetBtn').onclick = ()=>{
+  const w = prompt('모든 노트, 녹음, 분류, PIN이 지워집니다.\n계속하려면 "초기화"라고 입력하세요.');
+  if(w === '초기화') resetAll();
+};
+async function resetAll(){
+  for(const s of ['notes','audio','meta']) await DB.clear(s);
+  location.reload();
+}
+
+/* =========================================================
+   백업 / 복원
+   ========================================================= */
+function abToB64(buf){
+  const bytes = new Uint8Array(buf); let s = '';
+  for(let i=0;i<bytes.length;i+=0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i+0x8000));
+  return btoa(s);
+}
+function b64ToAb(b64){
+  const s = atob(b64); const a = new Uint8Array(s.length);
+  for(let i=0;i<s.length;i++) a[i] = s.charCodeAt(i);
+  return a.buffer;
+}
+function stamp(){
+  const d = new Date(), p = x=>String(x).padStart(2,'0');
+  return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
+}
+async function markBackedUp(){
+  settings.lastBackup = Date.now(); await setMeta('lastBackup', settings.lastBackup);
+  render();
+}
+async function exportBackup(){
+  flushSave();
+  const allNotes = await DB.all('notes');
+  const audio = await DB.all('audio');
+  const data = {
+    app: APP_ID, version: 1, exportedAt: new Date().toISOString(),
+    categories: cats, settings: {autoLockMin: settings.autoLockMin, sort: filter.sort},
+    notes: allNotes,
+    audio: audio.map(a=>({...a, data: abToB64(a.data)}))
+  };
+  const json = JSON.stringify(data);
+  const name = `아이디어노트_백업_${stamp()}.json`;
+  const file = new File([json], name, {type:'application/json'});
+  const url = URL.createObjectURL(file);
+  const canShare = !!(navigator.canShare && navigator.canShare({files:[file]}));
+  // 공유 창은 버튼을 직접 눌러야 열리므로, 파일을 먼저 만든 뒤 버튼을 한 번 더 보여줌
+  modal({
+    title:'백업 파일이 준비되었습니다',
+    text:`노트 ${allNotes.length}개 · 녹음 ${audio.length}개 · ${fmtSize(json.length)}\n\n${canShare ? "아래 버튼을 누른 뒤 '파일에 저장' → iCloud Drive를 선택하세요." : '아래 버튼을 눌러 파일을 내려받으세요.'}\n\n⚠️ 백업 파일을 GitHub 저장소 폴더에 넣지 마세요.`,
+    buttons:[
+      canShare
+        ? {label:'파일로 저장하기', cls:'primary', fn: async ()=>{
+            try{ await navigator.share({files:[file]}); await markBackedUp(); toast('백업을 저장했습니다'); }
+            catch(e){ if(e.name!=='AbortError') alert('저장하지 못했습니다: '+e.message); }
+            URL.revokeObjectURL(url);
+          }}
+        : {label:'파일 내려받기', cls:'primary', href:url, download:name, fn: async ()=>{ await markBackedUp(); toast('백업 파일을 내려받았습니다'); }},
+      {label:'닫기', cls:'plain', fn:()=>URL.revokeObjectURL(url)}
+    ]
+  });
+}
+
+let importCtx = 'settings';
+$('importFile').addEventListener('change', async e=>{
+  const f = e.target.files[0]; e.target.value = '';
+  if(!f) return;
+  let data;
+  try{ data = JSON.parse(await f.text()); }catch(_){ alert('백업 파일을 읽을 수 없습니다.'); return; }
+  if(data.app !== APP_ID || !Array.isArray(data.notes)){ alert('아이디어 노트 백업 파일이 아닙니다.'); return; }
+  const when = data.exportedAt ? fmtFull(Date.parse(data.exportedAt)) : '알 수 없음';
+  if(!confirm(`이 백업으로 복원할까요?\n\n백업 시각: ${when}\n노트 ${data.notes.length}개 · 녹음 ${(data.audio||[]).length}개\n\n※ 지금 기기에 있는 노트와 녹음은 모두 지워지고 백업 내용으로 바뀝니다.`)) return;
+  try{
+    await DB.clear('notes'); await DB.clear('audio');
+    await DB.putMany('notes', data.notes);
+    if(data.audio?.length) await DB.putMany('audio', data.audio.map(a=>({...a, data:b64ToAb(a.data)})));
+    if(Array.isArray(data.categories)){ cats = data.categories; await saveCats(); }
+    if(data.settings?.autoLockMin !== undefined){ settings.autoLockMin = data.settings.autoLockMin; await setMeta('autoLockMin', settings.autoLockMin); }
+    notes = await DB.all('notes');
+    filter = {...filter, cat:'all', sub:'all', tag:null};
+  }catch(err){ alert('복원 중 오류가 발생했습니다: ' + err.message); return; }
+
+  if(importCtx === 'lock'){
+    // PIN을 잊은 경우: 기존 PIN을 지우고 새로 설정
+    settings.pinHash = null; await delMeta('pinHash');
+    changing = false; show('list');
+    showLock('setup1', `복원 완료! (노트 ${data.notes.length}개)\n이제 새 PIN을 설정하세요.`);
+  } else {
+    show('list'); renderList(); toast('복원을 완료했습니다');
+  }
+});
+
+/* ---------------- 모달 ---------------- */
+function modal({title, text, buttons}){
+  const bg = document.createElement('div'); bg.className = 'modal-bg';
+  bg.innerHTML = `<div class="modal"><h2>${esc(title)}</h2><p>${esc(text)}</p><div class="mb"></div></div>`;
+  const box = bg.querySelector('.mb');
+  const close = () => bg.remove();
+  buttons.forEach(b=>{
+    const el = document.createElement(b.href ? 'a' : 'button');
+    el.className = 'mbtn ' + (b.cls||''); el.textContent = b.label;
+    if(b.href){ el.href = b.href; el.download = b.download; }
+    el.addEventListener('click', ()=>{ setTimeout(close, b.href ? 300 : 0); b.fn && b.fn(); });
+    box.appendChild(el);
+  });
+  bg.addEventListener('click', e=>{ if(e.target===bg) close(); });
+  document.body.appendChild(bg);
+}
+
+/* =========================================================
+   시작
+   ========================================================= */
+(async function init(){
+  try{ db = await openDB(); }
+  catch(e){ document.body.innerHTML = '<p style="padding:40px;text-align:center">저장 공간을 열 수 없습니다.<br>Safari 개인정보 보호 브라우징을 끄고 다시 열어 주세요.</p>'; return; }
+  settings.pinHash = await getMeta('pinHash', null);
+  settings.salt = await getMeta('salt', null);
+  settings.pinLen = await getMeta('pinLen', 4);
+  settings.autoLockMin = await getMeta('autoLockMin', 3);
+  settings.lastBackup = await getMeta('lastBackup', 0);
+  filter.sort = await getMeta('sort', 'updated'); $('fSort').value = filter.sort;
+  cats = await getMeta('categories', null);
+  if(!cats){ cats = DEFAULT_CATS.map(n=>({id:uid(), name:n, subs:[]})); await saveCats(); }
+  notes = await DB.all('notes');
+  try{ navigator.storage?.persist?.(); }catch(_){}
+  history.replaceState({v:'list'},'');
+  renderList();
+  showLock(settings.pinHash ? 'unlock' : 'setup1');
+  if('serviceWorker' in navigator && location.protocol === 'https:'){
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  }
+})();
+</script>
+</body>
+</html>
